@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EpiSim — Epidemic Spread Simulation</title>
+  <meta name="description" content="Interactive epidemic spread simulation using SEIR model on network graphs. Study infection dynamics, R₀, and intervention strategies in real-time." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Background particles -->
+  <div class="bg-particles" id="bgParticles"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="6" fill="#ff4d6d" opacity="0.9"/>
+            <circle cx="6" cy="8" r="3.5" fill="#ff4d6d" opacity="0.5"/>
+            <circle cx="26" cy="8" r="3.5" fill="#ff4d6d" opacity="0.5"/>
+            <circle cx="6" cy="24" r="3.5" fill="#ff4d6d" opacity="0.5"/>
+            <circle cx="26" cy="24" r="3.5" fill="#ff4d6d" opacity="0.5"/>
+            <line x1="16" y1="10" x2="6" y2="11" stroke="#ff4d6d" stroke-width="1.2" opacity="0.4"/>
+            <line x1="16" y1="10" x2="26" y2="11" stroke="#ff4d6d" stroke-width="1.2" opacity="0.4"/>
+            <line x1="16" y1="22" x2="6" y2="21" stroke="#ff4d6d" stroke-width="1.2" opacity="0.4"/>
+            <line x1="16" y1="22" x2="26" y2="21" stroke="#ff4d6d" stroke-width="1.2" opacity="0.4"/>
+          </svg>
+        </div>
+        <span class="logo-text">EpiSim</span>
+        <span class="logo-tag">v2.0</span>
+      </div>
+      <nav class="header-nav">
+        <span class="nav-badge" id="modelBadge">SEIR Model</span>
+        <span class="nav-badge net" id="networkBadge">Scale-Free Network</span>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main layout -->
+  <main class="main-layout">
+
+    <!-- Left Panel: Controls -->
+    <aside class="panel panel-left">
+      <div class="panel-section">
+        <h3 class="section-title"><span class="section-icon">⚙️</span> Model Parameters</h3>
+
+        <div class="param-group">
+          <label class="param-label">
+            Population Size
+            <span class="param-value" id="popVal">200</span>
+          </label>
+          <input type="range" class="slider" id="populationSlider" min="50" max="500" value="200" step="10" />
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">
+            Transmission Rate (β)
+            <span class="param-value" id="betaVal">0.30</span>
+          </label>
+          <input type="range" class="slider" id="betaSlider" min="0.01" max="1.0" value="0.30" step="0.01" />
+          <div class="param-hint">Probability of spread per contact</div>
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">
+            Incubation Rate (σ)
+            <span class="param-value" id="sigmaVal">0.20</span>
+          </label>
+          <input type="range" class="slider" id="sigmaSlider" min="0.01" max="1.0" value="0.20" step="0.01" />
+          <div class="param-hint">Rate of Exposed → Infectious</div>
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">
+            Recovery Rate (γ)
+            <span class="param-value" id="gammaVal">0.10</span>
+          </label>
+          <input type="range" class="slider" id="gammaSlider" min="0.01" max="0.5" value="0.10" step="0.01" />
+          <div class="param-hint">Rate of Infectious → Recovered</div>
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">
+            Mortality Rate (μ)
+            <span class="param-value" id="muVal">0.02</span>
+          </label>
+          <input type="range" class="slider" id="muSlider" min="0" max="0.2" value="0.02" step="0.005" />
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">
+            Avg Contacts (k)
+            <span class="param-value" id="kVal">6</span>
+          </label>
+          <input type="range" class="slider" id="kSlider" min="2" max="20" value="6" step="1" />
+          <div class="param-hint">Average network degree</div>
+        </div>
+
+        <div class="param-group">
+          <label class="param-label">
+            Simulation Speed
+            <span class="param-value" id="speedVal">1.0×</span>
+          </label>
+          <input type="range" class="slider" id="speedSlider" min="0.5" max="5" value="1" step="0.5" />
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="section-title"><span class="section-icon">🌐</span> Network Topology</h3>
+        <div class="topology-grid">
+          <button class="topo-btn active" data-topo="scalefree" id="topoScalefree">
+            <svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="5" fill="currentColor" opacity="0.9"/><circle cx="8" cy="8" r="2.5" fill="currentColor" opacity="0.5"/><circle cx="32" cy="8" r="2.5" fill="currentColor" opacity="0.5"/><circle cx="8" cy="32" r="2.5" fill="currentColor" opacity="0.5"/><circle cx="32" cy="32" r="2.5" fill="currentColor" opacity="0.5"/><circle cx="5" cy="20" r="2" fill="currentColor" opacity="0.3"/><circle cx="35" cy="20" r="2" fill="currentColor" opacity="0.3"/><line x1="15" y1="15" x2="10" y2="10" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="25" y1="15" x2="30" y2="10" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="15" y1="25" x2="10" y2="30" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="25" y1="25" x2="30" y2="30" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="15" y1="20" x2="7" y2="20" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="25" y1="20" x2="33" y2="20" stroke="currentColor" stroke-width="1" opacity="0.4"/></svg>
+            <span>Scale-Free</span>
+          </button>
+          <button class="topo-btn" data-topo="random" id="topoRandom">
+            <svg viewBox="0 0 40 40"><circle cx="10" cy="10" r="2.5" fill="currentColor"/><circle cx="30" cy="10" r="2.5" fill="currentColor"/><circle cx="20" cy="20" r="2.5" fill="currentColor"/><circle cx="10" cy="30" r="2.5" fill="currentColor"/><circle cx="30" cy="30" r="2.5" fill="currentColor"/><line x1="10" y1="10" x2="30" y2="10" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="30" y1="10" x2="20" y2="20" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="10" y1="10" x2="10" y2="30" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="20" y1="20" x2="30" y2="30" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="10" y1="30" x2="30" y2="30" stroke="currentColor" stroke-width="1" opacity="0.4"/></svg>
+            <span>Random (ER)</span>
+          </button>
+          <button class="topo-btn" data-topo="smallworld" id="topoSmallworld">
+            <svg viewBox="0 0 40 40"><circle cx="20" cy="5" r="2.5" fill="currentColor"/><circle cx="34" cy="13" r="2.5" fill="currentColor"/><circle cx="34" cy="27" r="2.5" fill="currentColor"/><circle cx="20" cy="35" r="2.5" fill="currentColor"/><circle cx="6" cy="27" r="2.5" fill="currentColor"/><circle cx="6" cy="13" r="2.5" fill="currentColor"/><polygon points="20,5 34,13 34,27 20,35 6,27 6,13" fill="none" stroke="currentColor" stroke-width="1" opacity="0.5"/><line x1="20" y1="5" x2="34" y2="27" stroke="currentColor" stroke-width="0.8" opacity="0.3"/><line x1="6" y1="13" x2="34" y2="27" stroke="currentColor" stroke-width="0.8" opacity="0.3"/></svg>
+            <span>Small World</span>
+          </button>
+          <button class="topo-btn" data-topo="grid" id="topoGrid">
+            <svg viewBox="0 0 40 40"><circle cx="10" cy="10" r="2" fill="currentColor"/><circle cx="20" cy="10" r="2" fill="currentColor"/><circle cx="30" cy="10" r="2" fill="currentColor"/><circle cx="10" cy="20" r="2" fill="currentColor"/><circle cx="20" cy="20" r="2" fill="currentColor"/><circle cx="30" cy="20" r="2" fill="currentColor"/><circle cx="10" cy="30" r="2" fill="currentColor"/><circle cx="20" cy="30" r="2" fill="currentColor"/><circle cx="30" cy="30" r="2" fill="currentColor"/><line x1="10" y1="10" x2="30" y2="10" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="10" y1="20" x2="30" y2="20" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="10" y1="30" x2="30" y2="30" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="10" y1="10" x2="10" y2="30" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="20" y1="10" x2="20" y2="30" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="30" y1="10" x2="30" y2="30" stroke="currentColor" stroke-width="1" opacity="0.4"/></svg>
+            <span>Grid</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="section-title"><span class="section-icon">💉</span> Interventions</h3>
+        <div class="intervention-list">
+          <label class="toggle-row">
+            <span class="toggle-label">
+              <span class="toggle-icon">😷</span>
+              Mask Mandate
+            </span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="maskToggle" />
+              <span class="toggle-track"></span>
+            </div>
+          </label>
+          <label class="toggle-row">
+            <span class="toggle-label">
+              <span class="toggle-icon">🏠</span>
+              Lockdown
+            </span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="lockdownToggle" />
+              <span class="toggle-track"></span>
+            </div>
+          </label>
+          <label class="toggle-row">
+            <span class="toggle-label">
+              <span class="toggle-icon">💊</span>
+              Vaccination (30%)
+            </span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="vaccinationToggle" />
+              <span class="toggle-track"></span>
+            </div>
+          </label>
+          <label class="toggle-row">
+            <span class="toggle-label">
+              <span class="toggle-icon">🧪</span>
+              Contact Tracing
+            </span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="tracingToggle" />
+              <span class="toggle-track"></span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- R₀ Display -->
+      <div class="r0-card">
+        <div class="r0-top">
+          <span class="r0-label">Basic Reproduction Number</span>
+          <span class="r0-value" id="r0Display">—</span>
+        </div>
+        <div class="r0-bar-track">
+          <div class="r0-bar-fill" id="r0Bar"></div>
+          <div class="r0-threshold"></div>
+        </div>
+        <div class="r0-legend">
+          <span class="r0-legend-item controlled">R₀ &lt; 1: Controlled</span>
+          <span class="r0-legend-item epidemic">R₀ &gt; 1: Epidemic</span>
+        </div>
+        <div class="r0-status" id="r0Status">—</div>
+      </div>
+    </aside>
+
+    <!-- Center: Simulation Canvas -->
+    <section class="sim-area">
+      <div class="sim-header">
+        <div class="sim-title-area">
+          <h1 class="sim-title">Epidemic Network Simulation</h1>
+          <p class="sim-subtitle">SEIR model on dynamic contact networks</p>
+        </div>
+        <div class="sim-controls">
+          <button class="ctrl-btn secondary" id="resetBtn" title="Reset">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            Reset
+          </button>
+          <button class="ctrl-btn primary" id="playPauseBtn" title="Play/Pause">
+            <svg class="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 9-14 9V3z"/></svg>
+            <svg class="icon-pause hidden" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            <span id="playPauseLabel">Simulate</span>
+          </button>
+          <button class="ctrl-btn secondary" id="infect1Btn" title="Infect Random Node">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            Infect Node
+          </button>
+        </div>
+      </div>
+
+      <!-- Canvas -->
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="simCanvas"></canvas>
+        <div class="canvas-overlay" id="canvasOverlay">
+          <div class="overlay-content">
+            <div class="overlay-icon">🦠</div>
+            <h2>Ready to Simulate</h2>
+            <p>Configure parameters and press <strong>Simulate</strong> to start</p>
+            <button class="overlay-btn" id="overlayStartBtn">Start Simulation</button>
+          </div>
+        </div>
+        <!-- Hover tooltip -->
+        <div class="node-tooltip" id="nodeTooltip"></div>
+      </div>
+
+      <!-- Day counter + phase badge -->
+      <div class="sim-status-bar">
+        <div class="status-item">
+          <span class="status-icon">📅</span>
+          <span class="status-label">Day</span>
+          <span class="status-value" id="dayCounter">0</span>
+        </div>
+        <div class="phase-badge" id="phaseBadge">—</div>
+        <div class="status-item">
+          <span class="status-icon">🔗</span>
+          <span class="status-label">Edges</span>
+          <span class="status-value" id="edgeCount">0</span>
+        </div>
+        <div class="status-item">
+          <span class="status-icon">👥</span>
+          <span class="status-label">Nodes</span>
+          <span class="status-value" id="nodeCount">0</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Panel: Stats & Chart -->
+    <aside class="panel panel-right">
+
+      <!-- Live Stats -->
+      <div class="panel-section">
+        <h3 class="section-title"><span class="section-icon">📊</span> Live Statistics</h3>
+        <div class="stats-grid">
+          <div class="stat-card susceptible">
+            <div class="stat-color-dot"></div>
+            <div class="stat-info">
+              <div class="stat-name">Susceptible</div>
+              <div class="stat-count" id="sCount">—</div>
+            </div>
+            <div class="stat-pct" id="sPct">—</div>
+          </div>
+          <div class="stat-card exposed">
+            <div class="stat-color-dot"></div>
+            <div class="stat-info">
+              <div class="stat-name">Exposed</div>
+              <div class="stat-count" id="eCount">—</div>
+            </div>
+            <div class="stat-pct" id="ePct">—</div>
+          </div>
+          <div class="stat-card infected">
+            <div class="stat-color-dot"></div>
+            <div class="stat-info">
+              <div class="stat-name">Infectious</div>
+              <div class="stat-count" id="iCount">—</div>
+            </div>
+            <div class="stat-pct" id="iPct">—</div>
+          </div>
+          <div class="stat-card recovered">
+            <div class="stat-color-dot"></div>
+            <div class="stat-info">
+              <div class="stat-name">Recovered</div>
+              <div class="stat-count" id="rCount">—</div>
+            </div>
+            <div class="stat-pct" id="rPct">—</div>
+          </div>
+          <div class="stat-card deceased">
+            <div class="stat-color-dot"></div>
+            <div class="stat-info">
+              <div class="stat-name">Deceased</div>
+              <div class="stat-count" id="dCount">—</div>
+            </div>
+            <div class="stat-pct" id="dPct">—</div>
+          </div>
+        </div>
+
+        <!-- Population bar -->
+        <div class="pop-bar" id="popBar">
+          <div class="pop-segment pop-s" id="popBarS"></div>
+          <div class="pop-segment pop-e" id="popBarE"></div>
+          <div class="pop-segment pop-i" id="popBarI"></div>
+          <div class="pop-segment pop-r" id="popBarR"></div>
+          <div class="pop-segment pop-d" id="popBarD"></div>
+        </div>
+      </div>
+
+      <!-- Peak & Summary -->
+      <div class="panel-section">
+        <h3 class="section-title"><span class="section-icon">🔥</span> Epidemic Metrics</h3>
+        <div class="metrics-grid">
+          <div class="metric-item">
+            <div class="metric-val" id="peakInfected">0</div>
+            <div class="metric-label">Peak Infected</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-val" id="peakDay">—</div>
+            <div class="metric-label">Peak Day</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-val" id="totalInfected">0</div>
+            <div class="metric-label">Total Infected</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-val warning" id="attackRate">0%</div>
+            <div class="metric-label">Attack Rate</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-val danger" id="cfr">0%</div>
+            <div class="metric-label">Case Fatality</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-val" id="doublingTime">—</div>
+            <div class="metric-label">Doubling Time</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Epidemic Curve Chart -->
+      <div class="panel-section chart-section">
+        <div class="chart-header">
+          <h3 class="section-title"><span class="section-icon">📈</span> Epidemic Curve</h3>
+          <div class="chart-legend">
+            <span class="legend-dot s"></span><span>S</span>
+            <span class="legend-dot e"></span><span>E</span>
+            <span class="legend-dot i"></span><span>I</span>
+            <span class="legend-dot r"></span><span>R</span>
+            <span class="legend-dot d"></span><span>D</span>
+          </div>
+        </div>
+        <canvas id="chartCanvas" class="chart-canvas"></canvas>
+      </div>
+
+      <!-- Event Log -->
+      <div class="panel-section">
+        <h3 class="section-title"><span class="section-icon">📋</span> Event Log</h3>
+        <div class="event-log" id="eventLog">
+          <div class="event-log-empty">No events yet. Start the simulation...</div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Legend -->
+  <div class="global-legend">
+    <div class="legend-item"><span class="legend-circle s"></span>Susceptible</div>
+    <div class="legend-item"><span class="legend-circle e"></span>Exposed</div>
+    <div class="legend-item"><span class="legend-circle i"></span>Infectious</div>
+    <div class="legend-item"><span class="legend-circle r"></span>Recovered</div>
+    <div class="legend-item"><span class="legend-circle d"></span>Deceased</div>
+    <div class="legend-item"><span class="legend-circle vaccinated"></span>Vaccinated</div>
+  </div>
+
+  <script src="simulation.js"></script>
+</body>
+</html>
